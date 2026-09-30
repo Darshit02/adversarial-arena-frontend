@@ -105,6 +105,20 @@ export function TopBar() {
               appearance={{
                 elements: {
                   avatarBox: "w-7 h-7 rounded-full border border-[var(--border)]",
+                  userButtonPopoverCard:
+                    "bg-[#15161B] border border-[#2A2C34] text-[#EDEDF0] shadow-2xl rounded-[12px]",
+                  userPreviewMainIdentifier:
+                    "text-[#EDEDF0] font-medium text-[14px]",
+                  userPreviewSecondaryIdentifier:
+                    "text-[#A8ABB5] text-[12px]",
+                  userButtonPopoverActionButton:
+                    "text-[#EDEDF0] hover:text-white hover:bg-[#1D1F26] rounded-[6px] transition-colors",
+                  userButtonPopoverActionButtonText:
+                    "text-[#EDEDF0] hover:text-white font-normal text-[13px]",
+                  userButtonPopoverActionButtonIcon:
+                    "text-[#A8ABB5]",
+                  userButtonPopoverFooter:
+                    "border-t border-[#2A2C34] bg-[#15161B] text-[#6B6E78]",
                 },
               }}
             />
