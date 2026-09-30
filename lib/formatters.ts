@@ -13,6 +13,15 @@ export function formatRFR(n: number): string {
 }
 
 /**
+ * Formats a decimal or percentage number into a percentage string.
+ * Example: 0.2 -> "20%" or 0.473 -> "47.3%"
+ */
+export function formatPercent(n: number, decimals = 1): string {
+  const percentage = n <= 1 && n >= 0 ? n * 100 : n;
+  return `${percentage % 1 === 0 ? percentage.toFixed(0) : percentage.toFixed(decimals)}%`;
+}
+
+/**
  * Formats milliseconds into human-readable duration, e.g. "3m 20s" or "450ms".
  */
 export function formatDuration(ms: number): string {
