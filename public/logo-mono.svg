@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <!-- Outer hexagon: fill currentColor or #EDEDF0 -->
+  <polygon
+    points="456,256 356,429.21 156,429.21 56,256 156,82.79 356,82.79"
+    fill="#EDEDF0"
+  />
+
+  <!-- Inner hexagon cutout: fill #0D0E12, rotated 15 deg -->
+  <polygon
+    points="356,256 306,342.6 206,342.6 156,256 206,169.4 306,169.4"
+    fill="#0D0E12"
+    transform="rotate(15 256 256)"
+  />
+
+  <!-- Diagonal crack: line in #EDEDF0 monochrome -->
+  <path
+    d="M 172 110 L 228 206 L 218 246 L 294 306 L 284 346 L 340 402"
+    stroke="#EDEDF0"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+  />
+</svg>

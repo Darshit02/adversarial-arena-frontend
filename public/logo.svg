@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- 30% accent glow filter for diagonal crack -->
+    <filter id="crack-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="4" result="blur" />
+      <feComponentTransfer in="blur" result="glow30">
+        <feFuncA type="linear" slope="0.3" />
+      </feComponentTransfer>
+      <feMerge>
+        <feMergeNode in="glow30" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Outer hexagon: fill #EDEDF0, flat-top, 400px wide (R=200, center 256, 256) -->
+  <polygon
+    points="456,256 356,429.21 156,429.21 56,256 156,82.79 356,82.79"
+    fill="#EDEDF0"
+  />
+
+  <!-- Inner hexagon cutout: fill #0D0E12, rotated 15 deg, 200px wide (R=100) -->
+  <polygon
+    points="356,256 306,342.6 206,342.6 156,256 206,169.4 306,169.4"
+    fill="#0D0E12"
+    transform="rotate(15 256 256)"
+  />
+
+  <!-- Diagonal crack: line from top-left to bottom-right, stroke #7C7FE8, 3px, round cap, with glow -->
+  <path
+    d="M 172 110 L 228 206 L 218 246 L 294 306 L 284 346 L 340 402"
+    stroke="#7C7FE8"
+    stroke-width="3"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    fill="none"
+    filter="url(#crack-glow)"
+  />
+</svg>
