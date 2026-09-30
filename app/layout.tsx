@@ -18,6 +18,9 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://adversarial-arena.dev"
+  ),
   title: "Adversarial Arena — LLM Robustness Benchmarking",
   description:
     "Adversarial Arena is the controlled testbed where security teams run adversarial probes against their LLM deployments — and measure exactly which guardrails hold.",
