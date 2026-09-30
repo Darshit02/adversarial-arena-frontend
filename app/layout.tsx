@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Fraunces } from "next/font/google";
+import { Inter, Lato } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ClerkProvider } from "@clerk/nextjs";
@@ -11,11 +11,11 @@ const inter = Inter({
   weight: ["400", "500", "600"],
 });
 
-const fraunces = Fraunces({
+const lato = Lato({
   subsets: ["latin"],
-  variable: "--font-fraunces",
+  variable: "--font-lato",
   display: "swap",
-  weight: ["500", "600"],
+  weight: ["400", "700", "900"],
 });
 
 export const metadata: Metadata = {
@@ -71,7 +71,7 @@ export default function RootLayout({
         },
       }}
     >
-      <html lang="en" className={`dark ${inter.variable} ${fraunces.variable}`}>
+      <html lang="en" className={`dark ${inter.variable} ${lato.variable}`}>
         <body className="bg-[var(--bg-base)] text-[var(--text-primary)] antialiased min-h-screen">
           {children}
           <Toaster />

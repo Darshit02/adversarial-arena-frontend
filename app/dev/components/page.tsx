@@ -103,7 +103,7 @@ export default function DevComponentsPage() {
 
           <div className="space-y-3">
             <span className="text-[11px] uppercase tracking-[0.03em] font-medium text-[var(--text-muted)]">
-              Wordmark (Fraunces Medium)
+              Wordmark (Lato)
             </span>
             <div className="flex flex-col gap-2 bg-[var(--bg-base)] p-4 rounded-[8px] border border-[var(--border)]">
               <Wordmark size="sm" />
