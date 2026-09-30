@@ -17,7 +17,7 @@ export interface ModalProps {
 const sizeClasses: Record<NonNullable<ModalProps["size"]>, string> = {
   sm: "max-w-md",
   md: "max-w-lg",
-  lg: "max-w-2xl",
+  lg: "max-w-7xl",
   xl: "max-w-4xl",
 };
 

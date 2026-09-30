@@ -47,15 +47,11 @@ export function Hero() {
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.08, ease: [0.16, 1, 0.3, 1] as const }}
-        className="font-display text-[40px] md:text-[54px] lg:text-[60px] leading-[1.1] tracking-[-0.03em] font-medium text-[var(--text-primary)] max-w-4xl"
+        className="font-display text-[40px] md:text-[54px] lg:text-[60px] leading-[1.1] tracking-[-0.03em] font-medium text-[var(--text-primary)] max-w-7xl"
       >
         {headlineWords.map((item, idx) => {
-          let colorClass = "text-[var(--text-primary)]";
-          if (item.highlight === "probe") colorClass = "text-[var(--probe)]";
-          if (item.highlight === "validator") colorClass = "text-[var(--validator)]";
-
-          return (
-            <span key={idx} className={colorClass}>
+                  return (
+            <span key={idx} >
               {item.text}{" "}
             </span>
           );

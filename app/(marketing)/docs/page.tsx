@@ -42,7 +42,7 @@ export default function DocsPage() {
         <h1 className="font-display text-[38px] leading-[1.2] font-medium text-[var(--text-primary)]">
           Adversarial Arena Documentation
         </h1>
-        <p className="text-[15px] text-[var(--text-secondary)] max-w-2xl">
+        <p className="text-[15px] text-[var(--text-secondary)] max-w-7xl">
           Everything you need to integrate ModelUnderTest endpoints, configure
           iterative probe suites, and analyze validator drop-off telemetry.
         </p>

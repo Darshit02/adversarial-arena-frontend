@@ -16,7 +16,7 @@ import { formatRFR } from "@/lib/formatters";
 export function FeatureBento() {
   return (
     <section className="py-20 px-6 max-w-[1440px] mx-auto space-y-12">
-      <div className="text-center space-y-3 max-w-2xl mx-auto">
+      <div className="text-center space-y-3 max-w-7xl mx-auto">
         <h2 className="text-[11px] uppercase tracking-[0.03em] font-medium text-[var(--text-muted)]">
           Built For Rigorous Defense
         </h2>
