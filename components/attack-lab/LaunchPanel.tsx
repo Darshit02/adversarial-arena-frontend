@@ -131,19 +131,21 @@ export function LaunchPanel({
         </Button>
 
         {/* Secondary Buttons */}
-        <div className="grid grid-cols-2 gap-3 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-1 gap-2.5 pt-1">
           <Button
             variant="secondary"
             size="sm"
+            className="w-full justify-center text-[12px] h-9"
             onClick={handleSaveTemplate}
             iconLeft={<Bookmark className="w-3.5 h-3.5 stroke-[1.75]" />}
           >
-            Save Template
+            Save as Template
           </Button>
 
           <Button
             variant="secondary"
             size="sm"
+            className="w-full justify-center text-[12px] h-9"
             onClick={() => handleLaunch(true)}
             iconLeft={<Sparkles className="w-3.5 h-3.5 stroke-[1.75]" />}
           >
