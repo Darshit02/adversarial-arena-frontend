@@ -3,6 +3,7 @@ import { Inter, Lato } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
 import { ClerkProvider } from "@clerk/nextjs";
+import { QueryProvider } from "@/components/providers/QueryProvider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -73,8 +74,10 @@ export default function RootLayout({
     >
       <html lang="en" className={`dark ${inter.variable} ${lato.variable}`}>
         <body className="bg-[var(--bg-base)] text-[var(--text-primary)] antialiased min-h-screen">
-          {children}
-          <Toaster />
+          <QueryProvider>
+            {children}
+            <Toaster />
+          </QueryProvider>
         </body>
       </html>
     </ClerkProvider>
