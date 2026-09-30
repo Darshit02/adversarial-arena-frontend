@@ -1,5 +1,6 @@
+import { env } from "@/lib/env";
+import { ApiError } from "@/lib/errors";
 import {
-  ApiError,
   type RFC7807ProblemDetails,
   type AuthMeResponse,
   type PaginatedResponse,
@@ -16,45 +17,77 @@ import {
   type ReportData,
 } from "@/types/api";
 
-const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export { ApiError };
 
-let tokenGetter: (() => Promise<string | null>) | null = null;
+export const API_BASE_URL = env.API_URL || "http://localhost:8000";
 
-export function setApiAuthTokenGetter(getter: () => Promise<string | null>) {
-  tokenGetter = getter;
+export interface ApiFetchOptions extends RequestInit {
+  token?: string;
 }
 
-async function request<T>(
-  endpoint: string,
-  options: RequestInit = {}
+let globalTokenGetter: (() => Promise<string | null>) | null = null;
+
+export function setApiAuthTokenGetter(getter: () => Promise<string | null>) {
+  globalTokenGetter = getter;
+}
+
+export async function apiFetch<T>(
+  path: string,
+  options: ApiFetchOptions = {}
 ): Promise<T> {
-  const url = `${API_BASE_URL}${endpoint}`;
+  // 1. Prefix with /api/v1 unless path explicitly starts with "/" (e.g. /health, /ready)
+  const normalizedPath = path.startsWith("/") ? path : `/api/v1/${path}`;
+  const url = `${API_BASE_URL}${normalizedPath}`;
+
   const headers = new Headers(options.headers);
 
-  // Set default content type if body exists
-  if (options.body && !headers.has("Content-Type")) {
+  // 2. Set Content-Type: application/json unless body is FormData
+  if (
+    options.body &&
+    !(options.body instanceof FormData) &&
+    !headers.has("Content-Type")
+  ) {
     headers.set("Content-Type", "application/json");
   }
 
-  // Attach Clerk JWT token if available
-  if (tokenGetter) {
+  // 3. Attach Bearer token if provided, or from globalTokenGetter
+  if (options.token) {
+    headers.set("Authorization", `Bearer ${options.token}`);
+  } else if (globalTokenGetter) {
     try {
-      const token = await tokenGetter();
+      const token = await globalTokenGetter();
       if (token) {
         headers.set("Authorization", `Bearer ${token}`);
       }
     } catch {
-      // Continue without token in unauthenticated/public paths
+      // Continue without token in unauthenticated contexts
     }
   }
 
-  const response = await fetch(url, {
-    ...options,
-    headers,
-  });
+  const fetchWithRetry = async (isRetry = false): Promise<Response> => {
+    try {
+      return await fetch(url, {
+        ...options,
+        headers,
+      });
+    } catch (networkError) {
+      // 7. Retry idempotent GET requests once on network error
+      const isGet = !options.method || options.method.toUpperCase() === "GET";
+      if (isGet && !isRetry) {
+        return fetchWithRetry(true);
+      }
+      throw new ApiError(
+        networkError instanceof Error
+          ? networkError.message
+          : "Network connection failed",
+        0
+      );
+    }
+  };
 
-  // Handle 401 Unauthorized -> redirect to login if in browser
+  const response = await fetchWithRetry();
+
+  // 6. Redirect to /login?next=... on 401 client-side
   if (response.status === 401) {
     if (typeof window !== "undefined") {
       const currentPath = window.location.pathname;
@@ -64,7 +97,18 @@ async function request<T>(
     }
   }
 
+  // 4. Handle 204 No Content
+  if (response.status === 204) {
+    return undefined as unknown as T;
+  }
+
+  // 5. Parse RFC 7807 error details if non-2xx
   if (!response.ok) {
+    const requestId =
+      response.headers.get("x-request-id") ||
+      response.headers.get("request-id") ||
+      undefined;
+
     let problem: RFC7807ProblemDetails;
     try {
       problem = await response.json();
@@ -72,131 +116,204 @@ async function request<T>(
       problem = {
         title: response.statusText || "Request Failed",
         status: response.status,
-        detail: `HTTP error ${response.status} requesting ${endpoint}`,
+        detail: `HTTP error ${response.status} requesting ${normalizedPath}`,
       };
     }
-    throw new ApiError(problem);
-  }
-
-  if (response.status === 204) {
-    return {} as T;
+    throw new ApiError(problem, response.status, requestId);
   }
 
   return response.json() as Promise<T>;
 }
 
+// -------------------------------------------------------------
+// Typed Endpoint Helper Functions (take token as first arg)
+// -------------------------------------------------------------
+
+export const listRuns = (
+  token?: string,
+  params?: { page?: number; status?: string; probe_type?: string }
+) => {
+  const query = new URLSearchParams();
+  if (params?.page) query.set("page", params.page.toString());
+  if (params?.status) query.set("status", params.status);
+  if (params?.probe_type) query.set("probe_type", params.probe_type);
+  const qStr = query.toString();
+  return apiFetch<PaginatedResponse<RunSummary>>(
+    `/api/v1/runs${qStr ? `?${qStr}` : ""}`,
+    { token }
+  );
+};
+
+export const getRun = (token: string | undefined, id: string) =>
+  apiFetch<RunSummary>(`/api/v1/runs/${id}`, { token });
+
+export const submitRun = (token: string | undefined, data: SubmitRunInput) =>
+  apiFetch<SubmitRunResponse>("/api/v1/runs", {
+    method: "POST",
+    body: JSON.stringify(data),
+    token,
+  });
+
+export const abortRun = (token: string | undefined, id: string) =>
+  apiFetch<{ aborted: boolean }>(`/api/v1/runs/${id}/abort`, {
+    method: "POST",
+    token,
+  });
+
+export const deleteRun = (token: string | undefined, id: string) =>
+  apiFetch<void>(`/api/v1/runs/${id}`, {
+    method: "DELETE",
+    token,
+  });
+
+export const listProbes = (
+  token?: string,
+  params?: { page?: number; page_size?: number }
+) => {
+  const query = new URLSearchParams();
+  if (params?.page) query.set("page", params.page.toString());
+  if (params?.page_size) query.set("page_size", params.page_size.toString());
+  const qStr = query.toString();
+  return apiFetch<PaginatedResponse<ProbeConfig>>(
+    `/api/v1/probes${qStr ? `?${qStr}` : ""}`,
+    { token }
+  );
+};
+
+export const getProbeRegistry = (token?: string) =>
+  apiFetch<ProbeRegistryItem[]>("/api/v1/probes/registry", { token });
+
+export const listValidators = (token?: string) =>
+  apiFetch<Validator[]>("/api/v1/validators", { token });
+
+export const createValidator = (
+  token: string | undefined,
+  data: CreateValidatorInput
+) =>
+  apiFetch<Validator>("/api/v1/validators", {
+    method: "POST",
+    body: JSON.stringify(data),
+    token,
+  });
+
+export const updateValidator = (
+  token: string | undefined,
+  id: string,
+  data: Partial<Validator>
+) =>
+  apiFetch<Validator>(`/api/v1/validators/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token,
+  });
+
+export const deleteValidator = (token: string | undefined, id: string) =>
+  apiFetch<void>(`/api/v1/validators/${id}`, {
+    method: "DELETE",
+    token,
+  });
+
+export const listModels = (token?: string) =>
+  apiFetch<ModelUnderTest[]>("/api/v1/models", { token });
+
+export const createModel = (
+  token: string | undefined,
+  data: CreateModelInput
+) =>
+  apiFetch<ModelUnderTest>("/api/v1/models", {
+    method: "POST",
+    body: JSON.stringify(data),
+    token,
+  });
+
+export const deleteModel = (token: string | undefined, id: string) =>
+  apiFetch<void>(`/api/v1/models/${id}`, {
+    method: "DELETE",
+    token,
+  });
+
+export const testModel = (token: string | undefined, id: string) =>
+  apiFetch<{ success: boolean; latency_ms: number; message: string }>(
+    `/api/v1/models/${id}/test`,
+    {
+      method: "POST",
+      token,
+    }
+  );
+
+export const getReport = (token: string | undefined, runId: string) =>
+  apiFetch<ReportData>(`/api/v1/reports/${runId}`, { token });
+
+export const getReportPdfUrl = (runId: string) =>
+  `${API_BASE_URL}/api/v1/reports/${runId}/pdf`;
+
+export const compareReports = (
+  token: string | undefined,
+  runA: string,
+  runB: string
+) =>
+  apiFetch<{ comparison: unknown }>(
+    `/api/v1/reports/compare?run_a=${runA}&run_b=${runB}`,
+    { token }
+  );
+
+export const getHealth = () => apiFetch<{ status: string }>("/health");
+
+export const getReady = () => apiFetch<{ ready: boolean }>("/ready");
+
+export const getAuthMe = (token?: string) =>
+  apiFetch<AuthMeResponse>("/api/v1/auth/me", { token });
+
+export const updateMe = (
+  token: string | undefined,
+  data: Partial<{ onboarding_completed: boolean; name: string }>
+) =>
+  apiFetch<AuthMeResponse>("/api/v1/auth/me", {
+    method: "PATCH",
+    body: JSON.stringify(data),
+    token,
+  });
+
+// Backward-compatible API object
 export const api = {
-  // Auth
-  getMe: () => request<AuthMeResponse>("/api/v1/auth/me"),
-  updateMe: (data: Partial<{ onboarding_completed: boolean; name: string }>) =>
-    request<AuthMeResponse>("/api/v1/auth/me", {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }),
-
-  // Probes
-  getProbes: (params?: { page?: number; page_size?: number }) => {
-    const query = new URLSearchParams();
-    if (params?.page) query.set("page", params.page.toString());
-    if (params?.page_size) query.set("page_size", params.page_size.toString());
-    return request<PaginatedResponse<ProbeConfig>>(
-      `/api/v1/probes${query.toString() ? `?${query}` : ""}`
-    );
-  },
-  getProbeRegistry: () =>
-    request<ProbeRegistryItem[]>("/api/v1/probes/registry"),
-  getProbe: (id: string) => request<ProbeConfig>(`/api/v1/probes/${id}`),
-  createProbe: (data: Partial<ProbeConfig>) =>
-    request<ProbeConfig>("/api/v1/probes", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
-  updateProbe: (id: string, data: Partial<ProbeConfig>) =>
-    request<ProbeConfig>(`/api/v1/probes/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }),
-  deleteProbe: (id: string) =>
-    request<void>(`/api/v1/probes/${id}`, {
-      method: "DELETE",
-    }),
-
-  // ModelsUnderTest (MUT)
-  getModels: () => request<ModelUnderTest[]>("/api/v1/models"),
-  createModel: (data: CreateModelInput) =>
-    request<ModelUnderTest>("/api/v1/models", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
-  deleteModel: (id: string) =>
-    request<void>(`/api/v1/models/${id}`, {
-      method: "DELETE",
-    }),
-  testModelConnectivity: (id: string) =>
-    request<{ success: boolean; latency_ms: number; message: string }>(
-      `/api/v1/models/${id}/test`,
-      {
-        method: "POST",
-      }
+  getMe: (token?: string) => getAuthMe(token),
+  updateMe: (
+    data: Partial<{ onboarding_completed: boolean; name: string }>,
+    token?: string
+  ) => updateMe(token, data),
+  getProbes: (params?: { page?: number; page_size?: number }, token?: string) =>
+    listProbes(token, params),
+  getProbeRegistry: (token?: string) => getProbeRegistry(token),
+  getModels: (token?: string) => listModels(token),
+  createModel: (data: CreateModelInput, token?: string) =>
+    createModel(token, data),
+  deleteModel: (id: string, token?: string) => deleteModel(token, id),
+  testModelConnectivity: (id: string, token?: string) => testModel(token, id),
+  getValidators: (token?: string) => listValidators(token),
+  createValidator: (data: CreateValidatorInput, token?: string) =>
+    createValidator(token, data),
+  updateValidator: (id: string, data: Partial<Validator>, token?: string) =>
+    updateValidator(token, id, data),
+  deleteValidator: (id: string, token?: string) =>
+    deleteValidator(token, id),
+  submitRun: (data: SubmitRunInput, token?: string) =>
+    submitRun(token, data),
+  getRuns: (
+    params?: { page?: number; status?: string; probe_type?: string },
+    token?: string
+  ) => listRuns(token, params),
+  getRun: (id: string, token?: string) => getRun(token, id),
+  getRunResults: (id: string, page = 1, token?: string) =>
+    apiFetch<PaginatedResponse<ProbeAttempt>>(
+      `/api/v1/runs/${id}/results?page=${page}`,
+      { token }
     ),
-
-  // Validators
-  getValidators: () => request<Validator[]>("/api/v1/validators"),
-  createValidator: (data: CreateValidatorInput) =>
-    request<Validator>("/api/v1/validators", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
-  updateValidator: (id: string, data: Partial<Validator>) =>
-    request<Validator>(`/api/v1/validators/${id}`, {
-      method: "PATCH",
-      body: JSON.stringify(data),
-    }),
-  deleteValidator: (id: string) =>
-    request<void>(`/api/v1/validators/${id}`, {
-      method: "DELETE",
-    }),
-
-  // Runs
-  submitRun: (data: SubmitRunInput) =>
-    request<SubmitRunResponse>("/api/v1/runs", {
-      method: "POST",
-      body: JSON.stringify(data),
-    }),
-  getRuns: (params?: { page?: number; status?: string; probe_type?: string }) => {
-    const query = new URLSearchParams();
-    if (params?.page) query.set("page", params.page.toString());
-    if (params?.status) query.set("status", params.status);
-    if (params?.probe_type) query.set("probe_type", params.probe_type);
-    return request<PaginatedResponse<RunSummary>>(
-      `/api/v1/runs${query.toString() ? `?${query}` : ""}`
-    );
-  },
-  getRun: (id: string) => request<RunSummary>(`/api/v1/runs/${id}`),
-  getRunResults: (id: string, page = 1) =>
-    request<PaginatedResponse<ProbeAttempt>>(
-      `/api/v1/runs/${id}/results?page=${page}`
-    ),
-  abortRun: (id: string) =>
-    request<{ aborted: boolean }>(`/api/v1/runs/${id}/abort`, {
-      method: "POST",
-    }),
-  deleteRun: (id: string) =>
-    request<void>(`/api/v1/runs/${id}`, {
-      method: "DELETE",
-    }),
-
-  // Reports
-  getReportJson: (runId: string) =>
-    request<ReportData>(`/api/v1/reports/${runId}`),
-  getReportPdfUrl: (runId: string) =>
-    `${API_BASE_URL}/api/v1/reports/${runId}/pdf`,
-  compareReports: (runA: string, runB: string) =>
-    request<{ comparison: unknown }>(
-      `/api/v1/reports/compare?run_a=${runA}&run_b=${runB}`
-    ),
-
-  // Health
-  getHealth: () => request<{ status: string }>("/api/v1/health"),
-  getReady: () => request<{ ready: boolean }>("/api/v1/ready"),
+  abortRun: (id: string, token?: string) => abortRun(token, id),
+  deleteRun: (id: string, token?: string) => deleteRun(token, id),
+  getReportJson: (runId: string, token?: string) => getReport(token, runId),
+  getReportPdfUrl,
+  compareReports: (runA: string, runB: string, token?: string) =>
+    compareReports(token, runA, runB),
+  getHealth,
+  getReady,
 };
