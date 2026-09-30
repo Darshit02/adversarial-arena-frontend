@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter, Fraunces } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
+import { ClerkProvider } from "@clerk/nextjs";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -41,11 +42,41 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`dark ${inter.variable} ${fraunces.variable}`}>
-      <body className="bg-[var(--bg-base)] text-[var(--text-primary)] antialiased min-h-screen">
-        {children}
-        <Toaster />
-      </body>
-    </html>
+    <ClerkProvider
+      appearance={{
+        variables: {
+          colorBackground: "#15161B",
+          colorForeground: "#EDEDF0",
+          colorMutedForeground: "#A8ABB5",
+          colorPrimary: "#7C7FE8",
+          colorInput: "#1D1F26",
+          colorInputForeground: "#EDEDF0",
+          colorDanger: "#C77B7B",
+          colorSuccess: "#7FB88E",
+          colorWarning: "#D4A574",
+          borderRadius: "8px",
+          fontFamily: "Inter, sans-serif",
+        },
+        elements: {
+          card: "bg-[var(--surface)] border border-[var(--border)] card-highlight shadow-2xl",
+          headerTitle: "font-display text-[22px] font-medium text-[var(--text-primary)]",
+          headerSubtitle: "text-[13px] text-[var(--text-secondary)]",
+          socialButtonsBlockButton:
+            "bg-[var(--surface-hover)] border border-[var(--border)] text-[var(--text-primary)] hover:bg-[var(--surface-raised)]",
+          formButtonPrimary:
+            "bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-[14px] font-medium py-2 rounded-[8px]",
+          formFieldInput:
+            "bg-[var(--bg-base)] border border-[var(--border)] text-[var(--text-primary)] focus:border-[var(--accent)]",
+          footerActionLink: "text-[var(--accent)] hover:text-[var(--accent-hover)]",
+        },
+      }}
+    >
+      <html lang="en" className={`dark ${inter.variable} ${fraunces.variable}`}>
+        <body className="bg-[var(--bg-base)] text-[var(--text-primary)] antialiased min-h-screen">
+          {children}
+          <Toaster />
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
